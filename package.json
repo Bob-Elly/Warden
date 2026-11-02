@@ -1,0 +1,27 @@
+{
+  "name": "warden",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Warden: The agent wallet where the AI never holds the keys (NEAR Hackathon)",
+  "private": true,
+  "workspaces": [
+    "agent",
+    "frontend"
+  ],
+  "scripts": {
+    "build:contract": "cd contracts/vault && cargo build --target wasm32-unknown-unknown --release",
+    "test:contract": "cd contracts/vault && cargo test",
+    "build:agent": "npm run --workspace=agent build",
+    "build:frontend": "npm run --workspace=frontend build",
+    "demo:attack": "node scripts/demo_attack.js"
+  },
+  "keywords": [
+    "near",
+    "ai-agent",
+    "security",
+    "smart-contracts",
+    "account-abstraction"
+  ],
+  "author": "Warden Team",
+  "license": "MIT"
+}
