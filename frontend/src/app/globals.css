@@ -59,3 +59,4 @@ input, textarea {
 input:focus, textarea:focus {
   border-color: var(--accent);
 }
+

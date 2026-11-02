@@ -134,3 +134,4 @@ npm run test:contract
 
 ## Safety & Security Principle
 > **"Never trust the LLM with direct asset control. Let the blockchain enforce the limits."**
+
