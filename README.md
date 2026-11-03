@@ -11,6 +11,17 @@ Built for the **NEAR Hackathon (Nov 1–14, 2026)** by **Team Warden**:
 
 ---
 
+## Live Deployments (NEAR Testnet)
+
+| Component | Testnet Account ID | Explorer Link |
+| :--- | :--- | :--- |
+| **Vault Contract** | `warden-vault-wakjr.testnet` | [View on NearBlocks](https://testnet.nearblocks.io/address/warden-vault-wakjr.testnet) |
+| **Owner Account** | `warden-owner-wakjr.testnet` | [View on NearBlocks](https://testnet.nearblocks.io/address/warden-owner-wakjr.testnet) |
+| **Authorized Agent** | `warden-agent-wakjr.testnet` | [View on NearBlocks](https://testnet.nearblocks.io/address/warden-agent-wakjr.testnet) |
+| **Sample Execution** | `0.5 NEAR Transfer` | [Tx Hash: 9ULTrfGQ...](https://testnet.nearblocks.io/txns/9ULTrfGQwJ6AwZj8dUwGENNj4J5TecWkkuasqXNQzZjq) |
+
+---
+
 ## The Problem
 Most AI agent crypto wallets hand the LLM full access private keys. If the agent falls victim to prompt injection, a compromised server, or an untrusted web scraping payload, the attacker drains the entire wallet instantly.
 
