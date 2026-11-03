@@ -60,3 +60,16 @@ input:focus, textarea:focus {
   border-color: var(--accent);
 }
 
+.layout-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 880px) {
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
