@@ -66,6 +66,19 @@ input:focus, textarea:focus {
   gap: 24px;
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 @media (max-width: 880px) {
   .layout-grid {
     grid-template-columns: 1fr;

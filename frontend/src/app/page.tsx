@@ -783,12 +783,12 @@ export default function Home() {
                     onChange={(e) => setPrompt(e.target.value)}
                     style={{ flex: 1, fontSize: '14px' }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handlePropose();
+                      if (e.key === 'Enter' && !isProposing && !isExecuting) handlePropose();
                     }}
                   />
                   <button
                     onClick={() => handlePropose()}
-                    disabled={isProposing}
+                    disabled={isProposing || isExecuting}
                     style={{
                       background: 'var(--accent)',
                       color: '#000',
@@ -796,12 +796,44 @@ export default function Home() {
                       alignItems: 'center',
                       gap: '6px',
                       fontSize: '14px',
+                      opacity: (isProposing || isExecuting) ? 0.75 : 1,
+                      cursor: (isProposing || isExecuting) ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {isProposing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    Propose
+                    {isProposing || isExecuting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Propose</span>
+                      </>
+                    )}
                   </button>
                 </div>
+
+                {/* Real-time processing banner */}
+                {(isProposing || isExecuting) && (
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      color: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '14px',
+                      padding: '8px 12px',
+                      background: 'rgba(0, 229, 160, 0.08)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(0, 229, 160, 0.25)',
+                    }}
+                  >
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>AI Agent verifying on-chain rules and executing on NEAR Testnet...</span>
+                  </div>
+                )}
 
                 {/* 5. Three-Tier Demo Action Buttons */}
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
