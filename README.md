@@ -11,7 +11,10 @@ Built for the **NEAR Hackathon (Nov 1–14, 2026)** by **Team Warden**:
 
 ---
 
-## Live Deployments (NEAR Testnet)
+## Live Demo & Deployments
+
+- **Live Web Application**: [https://warden-near.vercel.app](https://warden-near.vercel.app)
+- **GitHub Repository**: [https://github.com/Bob-Elly/Warden](https://github.com/Bob-Elly/Warden)
 
 | Component | Testnet Account ID | Explorer Link |
 | :--- | :--- | :--- |
