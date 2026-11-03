@@ -115,3 +115,4 @@ function fallbackParse(prompt: string, isInjection: boolean): Proposal {
     rationale: 'Parsed intent from instruction',
   };
 }
+
