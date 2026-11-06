@@ -27,7 +27,7 @@ export function isValidAccountId(id: string): boolean {
 /** "2.5" with 6 decimals -> "2500000". */
 export function toBaseUnits(amount: string, decimals: number): string {
   const s = String(amount).trim();
-  if (!/^d+(.d+)?$/.test(s)) throw new Error(`Invalid amount: "${amount}"`);
+  if (!/^\d+(\.\d+)?$/.test(s)) throw new Error(`Invalid amount: "${amount}"`);
   const [w, f = ""] = s.split(".");
   if (f.length > decimals) throw new Error(`Too many decimals (max ${decimals})`);
   return (BigInt(w) * 10n ** BigInt(decimals) + BigInt(f.padEnd(decimals, "0") || "0")).toString();
