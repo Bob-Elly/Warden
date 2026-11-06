@@ -1,27 +1,30 @@
 {
   "name": "warden",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Warden: The agent wallet where the AI never holds the keys (NEAR Hackathon)",
+  "description": "Warden: the agent wallet where the AI never holds the keys (NEAR HACKATHON)",
   "private": true,
   "workspaces": [
-    "agent",
     "frontend"
   ],
   "scripts": {
-    "build:contract": "cd contracts/vault && cargo build --target wasm32-unknown-unknown --release",
-    "test:contract": "cd contracts/vault && cargo test",
-    "build:agent": "npm run --workspace=agent build",
-    "build:frontend": "npm run --workspace=frontend build",
-    "demo:attack": "node scripts/demo_attack.js"
+    "setup": "tsx scripts/setup.ts",
+    "verify": "tsx scripts/verify.ts",
+    "demo:attack": "tsx scripts/demo-attack.ts",
+    "owner": "tsx scripts/owner.ts",
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "typecheck": "tsc -p scripts/tsconfig.json && npm run typecheck --workspace=frontend",
+    "build:contract": "docker run --rm -v \"$PWD/contracts/vault\":/src -w /src --entrypoint cargo sourcescan/cargo-near:0.23.0-rust-1.99.1 near build non-reproducible-wasm --locked --out-dir /src/res",
+    "test:contract": "cd contracts/vault && cargo test"
   },
-  "keywords": [
-    "near",
-    "ai-agent",
-    "security",
-    "smart-contracts",
-    "account-abstraction"
-  ],
-  "author": "Warden Team",
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT"
 }

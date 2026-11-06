@@ -1,0 +1,18 @@
+{
+  "network": "testnet",
+  "createdAt": "2026-11-06T17:28:05.386Z",
+  "vault": "warden-vault-5gx6t.testnet",
+  "owner": "warden-owner-5gx6t.testnet",
+  "agents": {
+    "payments": "warden-agent-5gx6t.testnet",
+    "research": "warden-research-5gx6t.testnet"
+  },
+  "x402PayTo": "warden-api-5gx6t.testnet",
+  "allowlist": [
+    "sara.testnet",
+    "merchant.testnet",
+    "warden-api-5gx6t.testnet"
+  ],
+  "vaultLocked": true,
+  "wasmSha256": "42f46530a84c12c5d7e584396629c5bdaba95223b08be5257a635066e66232c8"
+}

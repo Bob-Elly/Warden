@@ -1,3 +1,6 @@
+//! NEP-297 structured events. Every state change and every blocked action
+//! is logged as `EVENT_JSON:{"standard":"warden","version":"2.0.0",...}`.
+
 use near_sdk::serde::Serialize;
 use near_sdk::{env, AccountId};
 
@@ -7,17 +10,13 @@ use near_sdk::{env, AccountId};
 pub enum Event<'a> {
     VaultInitialized {
         owner_id: &'a AccountId,
-        per_tx_limit: String,
-        daily_limit: String,
+        vault_daily_limit: String,
     },
     VaultPaused {
         paused: bool,
-        by: &'a AccountId,
     },
-    LimitsUpdated {
-        per_tx_limit: String,
-        daily_limit: String,
-        by: &'a AccountId,
+    VaultLimitUpdated {
+        vault_daily_limit: String,
     },
     AllowlistAdded {
         account_id: &'a AccountId,
@@ -26,30 +25,65 @@ pub enum Event<'a> {
         account_id: &'a AccountId,
     },
     AgentAdded {
-        account_id: Option<&'a AccountId>,
-        public_key: Option<String>,
+        account_id: &'a AccountId,
+        label: &'a str,
+        per_tx_limit: String,
+        daily_limit: String,
     },
     AgentRemoved {
-        account_id: Option<&'a AccountId>,
-        public_key: Option<String>,
+        account_id: &'a AccountId,
+    },
+    AgentSuspended {
+        account_id: &'a AccountId,
+        strikes: u32,
+    },
+    AgentReinstated {
+        account_id: &'a AccountId,
     },
     ActionExecuted {
-        caller: &'a AccountId,
+        agent: &'a AccountId,
         receiver_id: &'a AccountId,
         amount: String,
-        token: &'a str,
         memo: Option<&'a str>,
     },
     ActionRejected {
-        reason: &'a str,
-        caller: &'a AccountId,
+        agent: &'a AccountId,
         receiver_id: &'a AccountId,
-        attempted_amount: String,
-        limit_or_status: String,
+        amount: String,
+        reason: &'a str,
+    },
+    ApprovalRequested {
+        request_id: u64,
+        agent: &'a AccountId,
+        receiver_id: &'a AccountId,
+        amount: String,
+        reason: &'a str,
+    },
+    ApprovalResolved {
+        request_id: u64,
+        approved: bool,
+    },
+    SubscriptionAdded {
+        subscription_id: u64,
+        receiver_id: &'a AccountId,
+        amount: String,
+        interval_secs: u64,
+    },
+    SubscriptionCharged {
+        subscription_id: u64,
+        receiver_id: &'a AccountId,
+        amount: String,
+    },
+    SubscriptionCancelled {
+        subscription_id: u64,
+    },
+    Withdrawn {
+        recipient: &'a AccountId,
+        amount: String,
     },
 }
 
-impl<'a> Event<'a> {
+impl Event<'_> {
     pub fn emit(&self) {
         #[derive(Serialize)]
         #[serde(crate = "near_sdk::serde")]
@@ -62,14 +96,13 @@ impl<'a> Event<'a> {
 
         let log = EventLog {
             standard: "warden",
-            version: "1.0.0",
+            version: "2.0.0",
             event: self,
         };
 
         env::log_str(&format!(
             "EVENT_JSON:{}",
-            near_sdk::serde_json::to_string(&log).expect("Failed to serialize event log")
+            near_sdk::serde_json::to_string(&log).expect("event serialization")
         ));
     }
 }
-

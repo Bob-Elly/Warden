@@ -14,7 +14,7 @@ dist/
 
 # Rust / Cargo
 target/
-Cargo.lock
+# Cargo.lock is committed for the contract (reproducible builds)
 
 # Environment variables & secrets (NEVER COMMIT)
 .env
@@ -44,3 +44,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Local tooling
+.claude/
+*.tsbuildinfo

@@ -1,32 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getVaultState } from '@/lib/near';
+import { getSnapshot } from '@/lib/warden/vault';
+import { getConfig } from '@/lib/warden/config';
+import { errorJson } from '@/lib/warden/http';
 
 export const dynamic = 'force-dynamic';
 
+/** Everything on the dashboard, read live from NEAR RPC. No cached or demo data. */
 export async function GET() {
+  const cfg = getConfig();
   try {
-    const vaultInfo = await getVaultState();
-    return NextResponse.json({ success: true, vault: vaultInfo });
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: err.message || 'Failed to fetch vault state',
-        // Fallback demo state if offline
-        fallback: {
-          owner_id: process.env.OWNER_ACCOUNT_ID || 'warden-owner.testnet',
-          per_tx_limit: '5000000000000000000000000',
-          daily_limit: '20000000000000000000000000',
-          spent_today: '0',
-          reset_in_seconds: 86400,
-          paused: false,
-          allowlist: ['sara.testnet', 'merchant.testnet'],
-          allowed_agents: [process.env.AGENT_ACCOUNT_ID || 'warden-agent.testnet'],
-          vault_balance: '3000000000000000000000000',
-        },
+    const snapshot = await getSnapshot();
+    return NextResponse.json({
+      snapshot,
+      features: {
+        nearAi: !!cfg.nearAi.apiKey,
+        nearAiModel: cfg.nearAi.model,
+        redTeamModel: cfg.nearAi.redTeamModel,
+        x402PayTo: cfg.x402.payTo,
+        x402Price: cfg.x402.priceYocto,
+        ownerId: cfg.ownerId,
+        agentRoles: cfg.agents.map((a) => ({ role: a.role, accountId: a.accountId })),
       },
-      { status: 200 }
-    );
+    });
+  } catch (e) {
+    return errorJson(e, 503);
   }
 }
-
