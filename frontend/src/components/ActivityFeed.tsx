@@ -2,7 +2,7 @@
 
 import { History } from 'lucide-react';
 import type { VaultSnapshot, Activity } from '@/lib/warden/types';
-import { near, relTime } from './ui';
+import { amountText, relTime } from './ui';
 import { reasonText } from '@/lib/warden/reasons';
 
 const KIND: Record<Activity['kind'], { label: string; cls: string }> = {
@@ -13,6 +13,8 @@ const KIND: Record<Activity['kind'], { label: string; cls: string }> = {
   denied: { label: 'Owner denied', cls: 'warn' },
   rejected: { label: 'Blocked', cls: 'bad' },
   suspended: { label: 'Agent suspended', cls: 'bad' },
+  reinstated: { label: 'Agent reinstated', cls: 'info' },
+  failed: { label: 'Transfer failed', cls: 'warn' },
 };
 
 export function ActivityFeed({ snap }: { snap: VaultSnapshot }) {
@@ -50,7 +52,7 @@ export function ActivityFeed({ snap }: { snap: VaultSnapshot }) {
                   <td className="mono" style={{ fontSize: 12 }}>
                     {a.receiver_id ?? '–'}
                   </td>
-                  <td className="amt">{a.kind === 'suspended' ? '–' : `${near(a.amount)} NEAR`}</td>
+                  <td className="amt">{a.kind === 'suspended' || a.kind === 'reinstated' ? '–' : amountText(a.amount, a.token, snap.tokens)}</td>
                   <td className="sub">{a.reason ? reasonText(a.reason) : a.memo ?? ''}</td>
                   <td className="faint" title={`block ${a.block_height}`}>
                     <a href={`${snap.explorer}/blocks/${a.block_height}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>

@@ -36,27 +36,45 @@ pub enum Event<'a> {
     AgentSuspended {
         account_id: &'a AccountId,
         strikes: u32,
+        /// 0 = until the owner reinstates the agent
+        until_ms: u64,
     },
     AgentReinstated {
         account_id: &'a AccountId,
+        automatic: bool,
+    },
+    TokenAdded {
+        token: &'a AccountId,
+        symbol: &'a str,
+        per_tx_limit: String,
+        daily_limit: String,
     },
     ActionExecuted {
         agent: &'a AccountId,
         receiver_id: &'a AccountId,
         amount: String,
+        /// None = NEAR
+        token: Option<&'a AccountId>,
         memo: Option<&'a str>,
     },
     ActionRejected {
         agent: &'a AccountId,
         receiver_id: &'a AccountId,
         amount: String,
+        token: Option<&'a AccountId>,
         reason: &'a str,
+    },
+    TransferFailed {
+        token: &'a AccountId,
+        receiver_id: &'a AccountId,
+        amount: String,
     },
     ApprovalRequested {
         request_id: u64,
         agent: &'a AccountId,
         receiver_id: &'a AccountId,
         amount: String,
+        token: Option<&'a AccountId>,
         reason: &'a str,
     },
     ApprovalResolved {
@@ -68,11 +86,13 @@ pub enum Event<'a> {
         receiver_id: &'a AccountId,
         amount: String,
         interval_secs: u64,
+        token: Option<&'a AccountId>,
     },
     SubscriptionCharged {
         subscription_id: u64,
         receiver_id: &'a AccountId,
         amount: String,
+        token: Option<&'a AccountId>,
     },
     SubscriptionCancelled {
         subscription_id: u64,
@@ -80,6 +100,7 @@ pub enum Event<'a> {
     Withdrawn {
         recipient: &'a AccountId,
         amount: String,
+        token: Option<&'a AccountId>,
     },
 }
 
@@ -96,7 +117,7 @@ impl Event<'_> {
 
         let log = EventLog {
             standard: "warden",
-            version: "2.0.0",
+            version: "2.1.0",
             event: self,
         };
 

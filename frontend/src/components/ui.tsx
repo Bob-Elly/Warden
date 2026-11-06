@@ -1,13 +1,56 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Info, ShieldX, XCircle } from 'lucide-react';
-import { yoctoToNear } from '@/lib/warden/units';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Hourglass, Info, ShieldX, XCircle } from 'lucide-react';
+import { fromBaseUnits, yoctoToNear } from '@/lib/warden/units';
 import { fmtNear, reasonText } from '@/lib/warden/reasons';
 import type { TraceStep } from '@/lib/warden/agent';
-import type { ExecutionOutcome } from '@/lib/warden/types';
+import type { ExecutionOutcome, TokenInfo } from '@/lib/warden/types';
 
 export const near = (yocto?: string | null, digits = 3) => fmtNear(yoctoToNear(yocto ?? '0', digits));
+
+/** Formats an on-chain amount: NEAR when `token` is null, otherwise the token's symbol and decimals. */
+export function amountText(amount: string, token: string | null | undefined, tokens: TokenInfo[]): string {
+  if (!token) return `${near(amount)} NEAR`;
+  const t = tokens.find((x) => x.tokenId === token);
+  if (!t) return `${amount} (unknown token)`;
+  return `${fmtNear(fromBaseUnits(amount, t.policy.decimals, 2))} ${t.policy.symbol}`;
+}
+
+/** Seconds left until `untilMs`, re-rendering every second. Calls onDone once at zero. */
+export function useCountdown(untilMs: number | null | undefined, onDone?: () => void): number {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!untilMs) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [untilMs]);
+  const left = untilMs ? Math.max(0, Math.ceil((untilMs - now) / 1000)) : 0;
+  useEffect(() => {
+    if (untilMs && left === 0) onDone?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [left === 0, untilMs]);
+  return left;
+}
+
+/** Shown when the agent's third strike suspends it with a timed quarantine. */
+export function QuarantineNotice({ untilMs, agent, onOver }: { untilMs: number; agent: string; onOver?: () => void }) {
+  const left = useCountdown(untilMs, onOver);
+  const over = left === 0;
+  return (
+    <div className={`verdict ${over ? 'ok' : 'fail'}`} role="status" aria-live="polite">
+      <Hourglass size={22} color={over ? 'var(--ok)' : 'var(--bad)'} />
+      <div className="grow">
+        <div className="big">{over ? 'Agent reinstated: the demo can continue' : `Agent suspended on-chain · back in ${left}s`}</div>
+        <div className="sub">
+          {over
+            ? `The quarantine set by the owner has ended, so ${agent} works again with a clean record.`
+            : `Three blocked attempts suspended ${agent}. In this public demo the owner set a short quarantine in the contract, so it is reinstated automatically. In production the owner would set none, and only the owner key could bring the agent back.`}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function relTime(ms: number): string {
   const s = Math.round((Date.now() - ms) / 1000);

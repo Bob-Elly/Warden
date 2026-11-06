@@ -101,10 +101,14 @@ export function SwapQuote({ perTxLimit }: { perTxLimit?: string }) {
   return (
     <div className="stack">
       <p className="sub">
-        A live quote from the NEAR Intents 1Click API on mainnet, with <code>dry: true</code>: a real solver price, but no
-        deposit address is created, so nothing can be sent. NEAR Intents has no testnet. Warden checks the size of the
-        proposed swap against the agent&apos;s vault budget before any execution.
+        The agent can price a cross-asset move before it proposes one. This is a live quote from the NEAR Intents 1Click
+        API, checked against the agent&apos;s vault budget.
       </p>
+      <div className="notice" style={{ fontSize: 12.5 }}>
+        Quote only. NEAR Intents runs on mainnet and has no testnet, while this demo vault lives on testnet. So Warden
+        requests a real solver quote with <code>dry: true</code>: no deposit address is created and nothing is sent. On
+        mainnet, the vault would fund the 1Click deposit address under the same limits.
+      </div>
       <div className="row wrap" style={{ alignItems: 'flex-end' }}>
         <label className="field" style={{ width: 140 }}>
           Sell (NEAR)

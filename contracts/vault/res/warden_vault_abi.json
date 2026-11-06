@@ -2,7 +2,7 @@
   "schema_version": "0.4.0",
   "metadata": {
     "name": "warden-vault",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "authors": [
       "Warden Team"
     ],
@@ -10,7 +10,7 @@
       "compiler": "rustc 1.99.1",
       "builder": "cargo-near cargo-near-build 0.11.5"
     },
-    "wasm_hash": "5WN43WmZ9ox63xwBSyqNnXZ3ykfGa1UBvLQhexqxqDDq"
+    "wasm_hash": "DvVEHhjMMJFUJMob4faoUh3s4Z3XYMyFLJaUBPHPtGLy"
   },
   "body": {
     "functions": [
@@ -80,6 +80,16 @@
                 "format": "uint64",
                 "minimum": 0.0
               }
+            },
+            {
+              "name": "token",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
           ]
         },
@@ -112,6 +122,49 @@
           "type_schema": {
             "type": "boolean"
           }
+        }
+      },
+      {
+        "name": "add_token",
+        "doc": " Allow agents to pay in a NEP-141 token with its own limits. The vault\n account must be storage-registered on the token contract.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "symbol",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "decimals",
+              "type_schema": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            {
+              "name": "per_tx_limit",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "daily_limit",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
         }
       },
       {
@@ -151,7 +204,7 @@
       },
       {
         "name": "charge_subscription",
-        "doc": " Pay a recurring payment the owner set up, if it is due. Callable by any\n registered, non-suspended agent. Amount and recipient are fixed by the\n owner, so a compromised agent can at most pay a bill on schedule.",
+        "doc": " Pay a recurring payment the owner set up, if it is due. Callable by any\n registered, non-suspended agent. Amount, token and recipient are fixed by\n the owner, so a compromised agent can at most pay a bill on schedule.",
         "kind": "call",
         "params": {
           "serialization_type": "json",
@@ -183,6 +236,51 @@
         "modifiers": [
           "payable"
         ]
+      },
+      {
+        "name": "execute_ft_transfer",
+        "doc": " Ask the vault to send `amount` (in the token's smallest unit) of a\n registered NEP-141 token, e.g. USDC. Same rules as `execute_transfer`,\n with the token's own per-payment and daily limits.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "receiver_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "memo",
+              "type_schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/ActionResult"
+          }
+        }
       },
       {
         "name": "execute_transfer",
@@ -219,6 +317,40 @@
           "serialization_type": "json",
           "type_schema": {
             "$ref": "#/definitions/ActionResult"
+          }
+        }
+      },
+      {
+        "name": "ft_on_transfer",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "sender_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "msg",
+              "type_schema": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "$ref": "#/definitions/PromiseOrValueString"
           }
         }
       },
@@ -283,6 +415,7 @@
       },
       {
         "name": "get_agents",
+        "doc": " Agents with windows and timed suspensions evaluated as of now.",
         "kind": "view",
         "result": {
           "serialization_type": "json",
@@ -332,6 +465,30 @@
         }
       },
       {
+        "name": "get_tokens",
+        "kind": "view",
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": [
+                {
+                  "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/TokenPolicy"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          }
+        }
+      },
+      {
         "name": "get_vault_info",
         "kind": "view",
         "result": {
@@ -343,6 +500,7 @@
       },
       {
         "name": "init",
+        "doc": " `quarantine_secs`: how long an auto-suspended agent stays suspended.\n 0 (default) means it stays suspended until the owner reinstates it.",
         "kind": "call",
         "modifiers": [
           "init"
@@ -362,6 +520,17 @@
               "type_schema": {
                 "type": "string"
               }
+            },
+            {
+              "name": "quarantine_secs",
+              "type_schema": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
             }
           ]
         }
@@ -377,6 +546,51 @@
               "type_schema": {
                 "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
                 "type": "string"
+              }
+            }
+          ]
+        },
+        "result": {
+          "serialization_type": "json",
+          "type_schema": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "name": "on_ft_transfer",
+        "doc": " Callback after an ft_transfer. If the transfer failed (for example the\n recipient has no storage on the token), give the amount back to the\n token's daily budget and record the failure.",
+        "kind": "call",
+        "modifiers": [
+          "private"
+        ],
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "receiver_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "refund_budget",
+              "type_schema": {
+                "type": "boolean"
               }
             }
           ]
@@ -464,6 +678,22 @@
         }
       },
       {
+        "name": "remove_token",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "set_agent_limits",
         "kind": "call",
         "params": {
@@ -486,6 +716,24 @@
               "name": "daily_limit",
               "type_schema": {
                 "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "set_quarantine",
+        "doc": " 0 = suspended agents stay suspended until the owner reinstates them.",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "quarantine_secs",
+              "type_schema": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
               }
             }
           ]
@@ -516,6 +764,35 @@
         "params": {
           "serialization_type": "json",
           "args": [
+            {
+              "name": "amount",
+              "type_schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "recipient",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "withdraw_ft",
+        "kind": "call",
+        "params": {
+          "serialization_type": "json",
+          "args": [
+            {
+              "name": "token_id",
+              "type_schema": {
+                "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+                "type": "string"
+              }
+            },
             {
               "name": "amount",
               "type_schema": {
@@ -568,6 +845,15 @@
               ],
               "format": "uint32",
               "minimum": 0.0
+            },
+            "suspended_until_ms": {
+              "description": "Set when this action suspended the agent and the suspension ends by itself.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
             }
           }
         },
@@ -603,7 +889,7 @@
               "minimum": 0.0
             },
             "kind": {
-              "description": "executed | rejected | pending | approved | denied | subscription | suspended",
+              "description": "executed | rejected | pending | approved | denied | subscription | suspended | reinstated | failed",
               "type": "string"
             },
             "memo": {
@@ -634,6 +920,13 @@
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
+            },
+            "token": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         },
@@ -648,6 +941,7 @@
             "spent_today",
             "strikes",
             "suspended",
+            "suspended_until_ms",
             "window_start"
           ],
           "properties": {
@@ -680,6 +974,12 @@
             },
             "suspended": {
               "type": "boolean"
+            },
+            "suspended_until_ms": {
+              "description": "When a suspension ends automatically (ms). 0 = only the owner can reinstate.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "window_start": {
               "type": "integer",
@@ -728,8 +1028,18 @@
             "receiver_id": {
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
               "type": "string"
+            },
+            "token": {
+              "description": "None = NEAR, Some(token contract) = NEP-141 token.",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
+        },
+        "PromiseOrValueString": {
+          "type": "string"
         },
         "Subscription": {
           "type": "object",
@@ -772,6 +1082,49 @@
             "receiver_id": {
               "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
               "type": "string"
+            },
+            "token": {
+              "description": "NEAR Account Identifier.\n\nThis is a unique, syntactically valid, human-readable account identifier on the NEAR network.\n\n[See the crate-level docs for information about validation.](index.html#account-id-rules)\n\nAlso see [Error kind precedence](AccountId#error-kind-precedence).\n\n## Examples\n\n``` use near_account_id::AccountId;\n\nlet alice: AccountId = \"alice.near\".parse().unwrap();\n\nassert!(\"ƒelicia.near\".parse::<AccountId>().is_err()); // (ƒ is not f) ```",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "TokenPolicy": {
+          "description": "Limits for one NEP-141 token, shared by all agents.",
+          "type": "object",
+          "required": [
+            "daily_limit",
+            "decimals",
+            "per_tx_limit",
+            "spent_today",
+            "symbol",
+            "window_start"
+          ],
+          "properties": {
+            "daily_limit": {
+              "type": "string"
+            },
+            "decimals": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            },
+            "per_tx_limit": {
+              "type": "string"
+            },
+            "spent_today": {
+              "type": "string"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "window_start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             }
           }
         },
@@ -785,6 +1138,7 @@
             "owner_id",
             "paused",
             "pending_count",
+            "quarantine_secs",
             "reset_in_seconds",
             "strike_limit",
             "total_blocked",
@@ -821,6 +1175,11 @@
             "pending_count": {
               "type": "integer",
               "format": "uint32",
+              "minimum": 0.0
+            },
+            "quarantine_secs": {
+              "type": "integer",
+              "format": "uint64",
               "minimum": 0.0
             },
             "reset_in_seconds": {

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Bot, CalendarClock, Clock, KeyRound, ListChecks, Loader2, PauseCircle, Vault } from 'lucide-react';
 import type { VaultSnapshot, ExecutionOutcome } from '@/lib/warden/types';
-import { Cmd, Explorer, Meter, Strikes, near, postJson, relTime } from './ui';
+import { Cmd, Explorer, Meter, Strikes, amountText, near, postJson, relTime, useCountdown } from './ui';
+import { fromBaseUnits } from '@/lib/warden/units';
 import { reasonText } from '@/lib/warden/reasons';
 
 function keySummary(keys: VaultSnapshot['agents'][number]['keys'], vaultId: string) {
@@ -13,6 +14,11 @@ function keySummary(keys: VaultSnapshot['agents'][number]['keys'], vaultId: stri
   const scoped = fc.every((f) => f.receiver_id === vaultId);
   const methods = [...new Set(fc.flatMap((f) => f.method_names))];
   return { ok: scoped, text: `function-call only → ${methods.join(', ')}` };
+}
+
+function SuspendedPill({ untilMs, onOver }: { untilMs: number; onOver: () => void }) {
+  const left = useCountdown(untilMs || null, onOver);
+  return <span className="pill bad">{untilMs ? `suspended · back in ${left}s` : 'suspended'}</span>;
 }
 
 export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: () => void }) {
@@ -56,6 +62,29 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
         <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
           Window resets in {Math.round(info.reset_in_seconds / 3600)} h · owner {info.owner_id}
         </div>
+        {snap.tokens.map((t) => (
+          <div key={t.tokenId} style={{ marginTop: 12 }}>
+            <div className="divider" style={{ margin: '0 0 10px' }} />
+            <div className="kv">
+              <span>{t.policy.symbol} balance</span>
+              <span>
+                {fromBaseUnits(t.balance, t.policy.decimals, 2)} {t.policy.symbol}
+              </span>
+            </div>
+            <div className="kv">
+              <span>{t.policy.symbol} today (≤ {fromBaseUnits(t.policy.per_tx_limit, t.policy.decimals, 2)} per payment)</span>
+              <span>
+                {fromBaseUnits(t.policy.spent_today, t.policy.decimals, 2)} / {fromBaseUnits(t.policy.daily_limit, t.policy.decimals, 2)}
+              </span>
+            </div>
+            <Meter value={t.policy.spent_today} max={t.policy.daily_limit} />
+          </div>
+        ))}
+        {info.quarantine_secs > 0 && (
+          <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
+            Quarantine: a suspended agent is reinstated after {info.quarantine_secs}s (demo setting; 0 = owner only)
+          </div>
+        )}
       </section>
 
       <section className="card" aria-labelledby="agents-h">
@@ -69,7 +98,7 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
               <div className="item" key={a.accountId}>
                 <div className="row between">
                   <b style={{ textTransform: 'capitalize' }}>{a.policy.label}</b>
-                  {a.policy.suspended ? <span className="pill bad">suspended</span> : <Strikes n={a.policy.strikes} max={info.strike_limit} />}
+                  {a.policy.suspended ? <SuspendedPill untilMs={a.policy.suspended_until_ms} onOver={onChange} /> : <Strikes n={a.policy.strikes} max={info.strike_limit} />}
                 </div>
                 <div className="mono faint" style={{ fontSize: 11.5, marginBottom: 6 }}>
                   {a.accountId}
@@ -95,7 +124,7 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
                 >
                   <KeyRound size={11} /> {k.text}
                 </a>
-                {a.policy.suspended && (
+                {a.policy.suspended && !a.policy.suspended_until_ms && (
                   <div style={{ marginTop: 8 }}>
                     <div className="sub" style={{ marginBottom: 4 }}>
                       Suspended after {a.policy.strikes} blocked attempts. Only the owner can reinstate it:
@@ -121,7 +150,7 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
               <div className="item" key={p.id}>
                 <div className="row between">
                   <b>
-                    #{p.id} · {near(p.amount)} NEAR → {p.receiver_id}
+                    #{p.id} · {amountText(p.amount, p.token, snap.tokens)} → {p.receiver_id}
                   </b>
                 </div>
                 <div className="sub">
@@ -193,7 +222,7 @@ function Subscriptions({ snap, onChange }: { snap: VaultSnapshot; onChange: () =
                 </button>
               </div>
               <div className="sub">
-                {near(s.amount)} NEAR → {s.receiver_id} every {fmtInterval(s.interval_secs)}
+                {amountText(s.amount, s.token, snap.tokens)} → {s.receiver_id} every {fmtInterval(s.interval_secs)}
               </div>
               <div className="faint" style={{ fontSize: 12 }}>
                 Paid {s.charges}× · next due {due ? 'now' : relTime(s.next_due_ms)}

@@ -7,8 +7,8 @@ Warden lets an AI agent make payments without being able to lose your money. Fun
 Built at NEAR HACKATHON (Nov 1–14, 2026) by Bob-Elly ([GitHub](https://github.com/Bob-Elly)) and NECO ([GitHub: NECOKIZZ](https://github.com/NECOKIZZ)). MIT licensed.
 
 - Live app: https://warden-near.vercel.app
-- Live vault (testnet): [`warden-vault-5gx6t.testnet`](https://testnet.nearblocks.io/address/warden-vault-5gx6t.testnet)
-- Agent account: [`warden-agent-5gx6t.testnet`](https://testnet.nearblocks.io/address/warden-agent-5gx6t.testnet) (Access Keys tab: one function-call key, no full-access key)
+- Live vault (testnet): [`vault-j5qmm.warden-owner-5gx6t.testnet`](https://testnet.nearblocks.io/address/vault-j5qmm.warden-owner-5gx6t.testnet) (created, deployed and initialized in one transaction; it has never had an access key)
+- Agent account: [`payments-j5qmm.warden-owner-5gx6t.testnet`](https://testnet.nearblocks.io/address/payments-j5qmm.warden-owner-5gx6t.testnet) (Access Keys tab: one function-call key; it was created that way and never had a full-access key)
 
 ## The problem
 
@@ -39,10 +39,11 @@ Security properties you can check yourself on testnet:
 | --- | --- | --- |
 | The agent cannot send NEAR directly | The agent account has no full-access key, only a function-call key | `npm run verify`, or the account's Access Keys tab on NearBlocks |
 | The agent cannot change rules or withdraw | The function-call key only allows `execute_transfer` and `charge_subscription`. Owner methods check `predecessor == owner` | `npm run demo:attack` step 4 |
-| Nobody can swap the contract code | `npm run setup` deletes the vault account's own full-access key after deploy | `npm run verify`: "vault account has no full-access key" |
+| Nobody can swap the contract code | `npm run setup` creates the vault as a sub-account of the owner and deploys and initializes it in the same transaction, without ever adding an access key | `npm run verify`: "vault account has no full-access key" |
 | Payments only go to approved recipients | On-chain allowlist | Demo step 2 |
 | Spending is bounded | Per-agent per-tx limit and 24h budget, plus a vault-wide 24h cap across all agents | Demo step 3, contract tests |
-| A hijacked agent gets shut off | 3 blocked attempts suspend the agent; only the owner can reinstate | Run step 2 three times, or `agent_is_suspended_after_strike_limit` test |
+| A hijacked agent gets shut off | 3 blocked attempts suspend the agent. The owner chooses on-chain whether it stays suspended until they reinstate it (`quarantine_secs = 0`) or for a fixed quarantine period (the public demo uses 60 s) | Run the poisoned-invoice step three times, or the `agent_is_suspended_after_strike_limit` and `quarantine_reinstates_agent_automatically` tests |
+| Stablecoins have their own limits | Each NEP-141 token (Circle testnet USDC here) has its own per-payment and daily limit; over-limit USDC payments queue for the owner | "Pay in USDC" step, `usdc_*` tests |
 | Big payments need a human | Over-limit requests are stored as pending; only the owner key can approve | Demo step 3, then `npm run owner -- approve <id>` |
 
 ## Try it in the browser (2 minutes, nothing to install)
@@ -51,13 +52,16 @@ Open https://warden-near.vercel.app. Everything on the page is read live from NE
 
 1. Check the four cards at the top. Expected: "Agent keys: function-call only, vault-scoped" and "Vault contract: locked". Both are read from RPC (`view_access_key_list`).
 2. Click **Step 1 Routine payment**. Expected: a green "Paid" result with a transaction link. The payments agent's "Today" bar on the right goes up by 0.1 NEAR.
-3. Click **Step 2 Over the limit** (1.5 NEAR with a 0.5 NEAR per-payment limit). Expected: "Waiting for the owner", and a new entry under "Waiting for owner" with the command the owner runs to approve it.
-4. Click **Step 3 Poisoned invoice**. The agent reads an email with a hidden instruction to send 1,000,000 NEAR to `attacker.testnet`, and runs in red-team mode (a model that obeys embedded instructions). Expected: the proposal shows the drain, then the vault answers "Blocked by the vault: recipient is not on the allowlist" and a red strike appears on the agent. The transaction link shows the `action_rejected` event.
-5. Open the **Agent pays for an API** tab and click the button. Expected: a 402 from the paid API, a 0.01 NEAR payment through the vault, then live token prices returned after the API verified the payment on-chain.
-6. Under **Recurring payments**, click "Agent: pay now" on a payment that is due. Expected: paid; clicking again shows "Not due yet".
-7. The **On-chain activity** table at the bottom is read from the contract's `get_activity` view.
+3. Click **Step 2 Pay in USDC** (2 USDC, Circle testnet USDC). Expected: "Paid"; the USDC bar in the Vault card goes up by 2 USDC and the activity log shows "2 USDC".
+4. Click **Step 3 Over the limit** (1.5 NEAR with a 0.5 NEAR per-payment limit). Expected: "Waiting for the owner", and a new entry under "Waiting for owner" with the command the owner runs to approve it.
+5. Click **Step 4 Poisoned invoice**. The agent reads an email with a hidden instruction to send 1,000,000 NEAR to `attacker.testnet`, and runs in red-team mode (a model that obeys embedded instructions). Expected: the proposal shows the drain, then the vault answers "Blocked by the vault: recipient is not on the allowlist" and a red strike appears on the agent. The transaction link shows the `action_rejected` event.
+6. Click **Step 4** two more times. Expected: on the third strike the agent is suspended on-chain and a countdown appears ("back in 60s"). During the countdown every payment is refused with "The agent is suspended". When it reaches zero the agent is reinstated with a clean record (the `reinstated` row in the activity log comes from the contract).
+7. Open the **Agent pays for an API** tab and click the button. Expected: a 402 from the paid API, a 0.01 NEAR payment through the vault, then live token prices returned after the API verified the payment on-chain.
+8. Open **Swap quote (Intents)** and request a quote. Expected: a live mainnet 1Click quote (`dry: true`, nothing is sent) and a line saying whether the size fits the agent's budget.
+9. Under **Recurring payments**, click "Agent: pay now" on a payment that is due. Expected: paid; clicking again shows "Not due yet".
+10. The **On-chain activity** table at the bottom is read from the contract's `get_activity` view.
 
-> The public demo uses a shared testnet vault with small budgets (0.5 NEAR per payment, 2 NEAR per day for the payments agent, 3 NEAR per day vault-wide). If the daily budget is used up, payments will queue for approval until the window resets. Repeating Step 3 three times suspends the shared agent; to see that without affecting others, run your own copy (below).
+> The public demo uses a shared testnet vault with small budgets (0.5 NEAR per payment and 2 NEAR per day for the payments agent, 3 NEAR per day vault-wide, 2 USDC per payment and 10 USDC per day). If a daily budget is used up, payments queue for approval until the window resets. The shared vault uses a 60-second quarantine so a suspended agent comes back on its own for the next visitor.
 
 ## Run it yourself (about 5 minutes)
 
@@ -76,13 +80,15 @@ npm run verify
 
 Expected: every line `PASS`, ending with `All checks passed` (exit code 0). It checks that the vault and both agents have no full-access key, and that each agent key is scoped to the vault's two agent methods.
 
-**2. Create your own deployment on testnet** (free; creates 5 accounts through the testnet helper, deploys, configures and locks the keys)
+**2. Create your own deployment on testnet** (free; creates an owner account through the testnet helper, then the vault, two agents and the x402 payee as sub-accounts of the owner)
 
 ```bash
 npm run setup
 ```
 
-Expected: `Done. Warden is live on NEAR testnet` with links. Keys go to `.env` (gitignored), public ids to `deployment.json`. The `.env` is written before the first transaction, so an interrupted run never loses keys.
+Expected: `Done. Warden is live on NEAR testnet` with links. The vault is created, funded, deployed and initialized in one transaction and never gets an access key. Each agent is created holding only its function-call key. Keys go to `.env` (gitignored), public ids to `deployment.json`. The `.env` is written before the first transaction, so an interrupted run never loses keys. If the testnet helper is rate-limited and you already have an owner in `.env`, use `npm run setup -- --force --reuse-owner`.
+
+Optional, for the stablecoin step: get test USDC at https://faucet.circle.com (USDC, NEAR Testnet) and send it to your vault address. Without it, the USDC step is skipped.
 
 **3. Live attack demo** (real transactions; exits non-zero if the vault ever does something unexpected)
 
@@ -115,13 +121,13 @@ npm run dev
 
 Open http://localhost:3000 and follow the browser steps above.
 
-**6. Contract tests** (21 unit tests, needs Rust)
+**6. Contract tests** (31 unit tests, needs Rust)
 
 ```bash
 npm run test:contract
 ```
 
-Expected: `test result: ok. 21 passed`. The tests cover execution within limits, allowlist rejection with strikes, the prompt-injection drain, auto-suspension and reinstatement, the approval queue (approve, deny, an agent trying to approve itself, bounded size), per-agent and vault-wide budgets, 24h window reset, pause, unauthorized callers, owner-only methods, insufficient balance, recurring payments and the bounded activity log.
+Expected: `test result: ok. 31 passed`. The tests cover execution within limits, allowlist rejection with strikes, the prompt-injection drain, auto-suspension, owner reinstatement and timed quarantine, the approval queue (approve, deny, an agent trying to approve itself, bounded size), per-agent and vault-wide budgets, 24h window reset, pause, unauthorized callers, owner-only methods, insufficient balance, USDC payments (limits, queueing, strangers, unknown tokens, failed transfers refunding the budget), NEAR and USDC recurring payments, and the bounded activity log.
 
 ### Optional: real LLM on NEAR AI Cloud
 
@@ -143,15 +149,16 @@ With a key, each proposal shows a verified TEE signature, and the **Private AI**
 | **Agent Economy** | The agent pays for an API by itself through an x402-style HTTP 402 flow, settled by the vault, verified on-chain by the API before it serves data | "Agent pays for an API" tab, `frontend/src/lib/warden/x402.ts` |
 | **Privacy & Private AI** | Payment instructions go to NEAR AI Cloud models running in TEEs. Every completion's ECDSA signature is verified, and the attestation report (Intel TDX + NVIDIA evidence, fresh nonce) is shown | "Private AI" tab, `frontend/src/lib/warden/llm.ts`, `attestation.ts` (needs `NEAR_AI_API_KEY`) |
 | **AI Swarms** | Several agents under one vault, each with its own budget and strike count, plus a shared vault-wide cap so the group can never overspend together | Agents panel, `vault_cap_applies_across_agents` and `agents_have_independent_budgets_and_strikes` tests |
-| **Real-World Money** | Recurring payments (hosting, API plans) with amount, payee and schedule fixed on-chain by the owner; invoice payment from email | Recurring payments panel, `charge_subscription` |
-| **Autonomous Business** | Humans only set the constraints (allowlist, budgets, cap); agents run day-to-day payments, subscriptions and data purchases within them | Whole app |
-| **Unstoppable DeFi** (partial) | Live NEAR Intents 1Click quotes (`dry: true`, mainnet) checked against the agent's vault budget. Swap execution through the vault is not built yet | "Swap quote" tab, `frontend/src/lib/warden/intents.ts` |
+| **Real-World Money** | Stablecoin payments in Circle testnet USDC (NEP-141) with their own per-payment and daily limits; USDC contractor payroll and NEAR hosting bills as recurring payments with amount, payee and schedule fixed on-chain; invoice payment from email | "Pay in USDC" step, Recurring payments panel, `execute_ft_transfer`, `charge_subscription` |
+| **Autonomous Business** | Humans only set the constraints (allowlist, budgets, caps, quarantine); agents run day-to-day payments, payroll, subscriptions and data purchases within them | Whole app |
+| **Unstoppable DeFi** | Live NEAR Intents 1Click quotes checked against the agent's vault budget before a swap is proposed. NEAR Intents is mainnet-only and has no testnet, so the testnet demo requests real solver quotes with `dry: true` and does not execute the swap | "Swap quote (Intents)" tab, `frontend/src/lib/warden/intents.ts` |
 
 ## NEAR technologies used
 
-- **Function-call access keys**: each agent account holds only a key with `receiver_id = vault` and `method_names = [execute_transfer, charge_subscription]`. Its gas allowance (0.5 NEAR) is a gas budget, not a spending limit; spending limits live in the contract.
+- **Function-call access keys**: each agent account holds only a key with `receiver_id = vault` and `method_names = [execute_transfer, execute_ft_transfer, charge_subscription]`. Its gas allowance (0.5 NEAR) is a gas budget, not a spending limit; spending limits live in the contract.
 - **Smart contract in Rust** with `near-sdk` 5.30 (`store::IterableMap`, `IterableSet`, `LookupMap`), built with `cargo-near` 0.23.
-- **NEP-297 events** (`standard: "warden"`, version 2.0.0): `action_executed`, `action_rejected`, `approval_requested`, `approval_resolved`, `agent_suspended`, `subscription_charged`, and owner configuration events.
+- **NEP-141 fungible tokens and NEP-145 storage**: the vault pays Circle's testnet USDC with `ft_transfer` plus a callback that refunds the daily budget if a transfer fails; setup registers the vault and recipients on the token.
+- **NEP-297 events** (`standard: "warden"`, version 2.1.0): `action_executed`, `action_rejected`, `approval_requested`, `approval_resolved`, `agent_suspended`, `agent_reinstated`, `transfer_failed`, `subscription_charged`, and owner configuration events.
 - **Locked contract account**: the vault's full-access key is deleted after deploy.
 - **Named accounts** in the allowlist and agent registry.
 - **NEAR AI Cloud** (`https://cloud-api.near.ai/v1`, OpenAI-compatible): TEE inference, `/v1/signature/{chat_id}` completion signatures, `/v1/attestation/report`.
@@ -162,12 +169,13 @@ With a key, each proposal shows a verified TEE signature, and the **Private AI**
 
 Agent methods (the only ones the agent key can call):
 
-- `execute_transfer(receiver_id, amount: U128, memo?) -> { status, reason?, request_id?, strikes? }`
+- `execute_transfer(receiver_id, amount: U128, memo?) -> { status, reason?, request_id?, strikes?, suspended_until_ms? }`
+- `execute_ft_transfer(token_id, receiver_id, amount: U128, memo?) -> same`
 - `charge_subscription(subscription_id) -> { status, reason? }`
 
-Owner methods: `add_agent`, `set_agent_limits`, `remove_agent`, `reinstate_agent`, `set_vault_daily_limit`, `add_to_allowlist`, `remove_from_allowlist`, `pause`, `unpause`, `approve_request`, `reject_request`, `add_subscription`, `cancel_subscription`, `withdraw`, `deposit` (payable, anyone).
+Owner methods: `add_agent`, `set_agent_limits`, `remove_agent`, `reinstate_agent`, `set_quarantine`, `set_vault_daily_limit`, `add_token`, `remove_token`, `add_to_allowlist`, `remove_from_allowlist`, `pause`, `unpause`, `approve_request`, `reject_request`, `add_subscription`, `cancel_subscription`, `withdraw`, `withdraw_ft`, `deposit` (payable, anyone). `ft_on_transfer` accepts token deposits.
 
-Views: `get_vault_info`, `get_agents`, `get_agent`, `get_pending`, `get_subscriptions`, `get_activity(limit?)`, `is_allowlisted`.
+Views: `get_vault_info`, `get_agents`, `get_agent`, `get_tokens`, `get_pending`, `get_subscriptions`, `get_activity(limit?)`, `is_allowlisted`.
 
 ## Repository layout
 
@@ -175,7 +183,7 @@ Views: `get_vault_info`, `get_agents`, `get_agent`, `get_pending`, `get_subscrip
 contracts/vault/          Rust vault contract
   src/lib.rs              rules, owner methods, views
   src/events.rs           NEP-297 events
-  src/tests.rs            21 unit tests
+  src/tests.rs            31 unit tests
   res/warden_vault.wasm   built contract (sha256 in deployment.json)
 frontend/                 Next.js 14 app: web UI and agent server
   src/lib/warden/         agent logic shared by the API routes and the CLI scripts
@@ -198,7 +206,9 @@ Set these environment variables on the host (for example Vercel, project root `f
 
 ## Limitations
 
-- Testnet only. NEAR Intents has no testnet, so swaps are quote-only (`dry: true`); the vault holds native NEAR, not fungible tokens, so stablecoin payments are not built yet.
+- Testnet only. NEAR Intents has no testnet, so swaps are quote-only (`dry: true`). Stablecoin payments use Circle testnet USDC; the vault must be funded from the Circle faucet.
+- Per-agent limits apply to NEAR; stablecoin limits are per token and shared by all agents.
+- A failed token transfer (for example a recipient without storage on the token) refunds the daily budget in a callback, but the agent call itself already returned `executed`; the failure shows up as a `failed` activity entry and a `transfer_failed` event.
 - The 24h windows are fixed windows that start at the first spend after a reset, not sliding windows.
 - x402 replay protection is per server instance (in-memory set of used transaction hashes), on top of the 10-minute signed nonce.
 - Owner approval happens from the owner's machine (`npm run owner`), not from the web UI; there is no wallet connection in the app.

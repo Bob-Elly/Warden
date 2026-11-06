@@ -39,7 +39,7 @@ fn ctx(caller: AccountId, ts: u64) {
 /// Vault with: 20 NEAR vault cap, agent (5/tx, 10/day), sara allowlisted.
 fn setup() -> WardenVault {
     ctx(owner(), T0);
-    let mut v = WardenVault::init(owner(), near(20));
+    let mut v = WardenVault::init(owner(), near(20), None);
     v.add_to_allowlist(sara());
     v.add_agent(agent(), "payments".into(), near(5), near(10));
     v
@@ -262,7 +262,7 @@ fn insufficient_balance_is_rejected() {
 fn subscription_charges_only_when_due() {
     let mut v = setup();
     ctx(owner(), T0);
-    let id = v.add_subscription("Hosting".into(), sara(), near(1), 3600);
+    let id = v.add_subscription("Hosting".into(), sara(), near(1), 3600, None);
     ctx(agent(), T0);
     assert_eq!(status(&v.charge_subscription(id)), ActionStatus::Executed);
     let r = v.charge_subscription(id);
@@ -305,4 +305,161 @@ fn long_memo_is_truncated() {
     ctx(agent(), T0);
     v.execute_transfer(sara(), near(1), Some("x".repeat(500)));
     assert_eq!(v.get_activity(None)[0].memo.as_ref().unwrap().len(), MAX_MEMO_LEN);
+}
+
+/* ------------------------- quarantine (timed suspension) ------------------------- */
+
+#[test]
+fn quarantine_reinstates_agent_automatically() {
+    ctx(owner(), T0);
+    let mut v = WardenVault::init(owner(), near(20), Some(60));
+    v.add_to_allowlist(sara());
+    v.add_agent(agent(), "payments".into(), near(5), near(10));
+
+    ctx(agent(), T0);
+    let mut last = None;
+    for _ in 0..STRIKE_LIMIT {
+        last = Some(v.execute_transfer(attacker(), near(1), None));
+    }
+    let until = last.unwrap().suspended_until_ms.expect("timed suspension");
+    assert_eq!(until, T0 / 1_000_000 + 60_000);
+    assert!(v.get_agent(agent()).unwrap().suspended);
+
+    // Still suspended before the quarantine ends.
+    ctx(agent(), T0 + 30 * 1_000_000_000);
+    assert_eq!(v.execute_transfer(sara(), near(1), None).reason.as_deref(), Some("agent_suspended"));
+
+    // The view already shows it reinstated once the time has passed...
+    ctx(agent(), T0 + 61 * 1_000_000_000);
+    let view = v.get_agents().into_iter().find(|(id, _)| id == &agent()).unwrap().1;
+    assert!(!view.suspended && view.strikes == 0);
+    // ...and the next call reinstates it in state and goes through.
+    assert_eq!(status(&v.execute_transfer(sara(), near(1), None)), ActionStatus::Executed);
+    assert!(get_logs().iter().any(|l| l.contains("\"event\":\"agent_reinstated\"") && l.contains("\"automatic\":true")));
+    assert!(v.get_activity(None).iter().any(|a| a.kind == "reinstated"));
+}
+
+#[test]
+fn zero_quarantine_needs_owner() {
+    let mut v = setup();
+    ctx(agent(), T0);
+    for _ in 0..STRIKE_LIMIT {
+        v.execute_transfer(attacker(), near(1), None);
+    }
+    assert_eq!(v.get_agent(agent()).unwrap().suspended_until_ms, 0);
+    ctx(agent(), T0 + 10 * DAY_NS);
+    assert_eq!(v.execute_transfer(sara(), near(1), None).reason.as_deref(), Some("agent_suspended"));
+}
+
+/* ------------------------------ stablecoin payments ------------------------------ */
+
+fn usdc() -> AccountId {
+    acc("usdc.testnet")
+}
+const USD: u128 = 1_000_000; // 6 decimals
+
+fn setup_usdc() -> WardenVault {
+    let mut v = setup();
+    ctx(owner(), T0);
+    v.add_token(usdc(), "USDC".into(), 6, U128(2 * USD), U128(5 * USD));
+    v
+}
+
+#[test]
+fn usdc_payment_within_limits_executes() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    let r = v.execute_ft_transfer(usdc(), sara(), U128(USD), Some("invoice".into()));
+    assert_eq!(status(&r), ActionStatus::Executed);
+    let p = &v.get_tokens()[0].1;
+    assert_eq!(p.spent_today, U128(USD));
+    let log = &v.get_activity(None)[0];
+    assert_eq!(log.token, Some(usdc()));
+    assert!(get_logs().iter().any(|l| l.contains("\"event\":\"action_executed\"") && l.contains("usdc.testnet")));
+}
+
+#[test]
+fn usdc_over_limit_is_queued_and_approvable() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    let r = v.execute_ft_transfer(usdc(), sara(), U128(3 * USD), None);
+    assert_eq!(r.reason.as_deref(), Some("token_per_tx_limit_exceeded"));
+    let req = &v.get_pending()[0];
+    assert_eq!(req.token, Some(usdc()));
+    ctx(owner(), T0);
+    v.approve_request(r.request_id.unwrap());
+    assert!(v.get_pending().is_empty());
+}
+
+#[test]
+fn usdc_daily_limit_applies() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    v.execute_ft_transfer(usdc(), sara(), U128(2 * USD), None);
+    v.execute_ft_transfer(usdc(), sara(), U128(2 * USD), None);
+    let r = v.execute_ft_transfer(usdc(), sara(), U128(2 * USD), None);
+    assert_eq!(r.reason.as_deref(), Some("token_daily_limit_exceeded"));
+}
+
+#[test]
+fn usdc_to_stranger_is_blocked_with_strike() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    let r = v.execute_ft_transfer(usdc(), attacker(), U128(USD), None);
+    assert_eq!(r.reason.as_deref(), Some("recipient_not_allowlisted"));
+    assert_eq!(r.strikes, Some(1));
+}
+
+#[test]
+fn unknown_token_is_refused() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    let r = v.execute_ft_transfer(acc("scam-token.testnet"), sara(), U128(USD), None);
+    assert_eq!(r.reason.as_deref(), Some("token_not_supported"));
+    assert_eq!(r.strikes, Some(0));
+}
+
+#[test]
+fn failed_token_transfer_refunds_daily_budget() {
+    let mut v = setup_usdc();
+    ctx(agent(), T0);
+    v.execute_ft_transfer(usdc(), sara(), U128(2 * USD), None);
+    assert_eq!(v.get_tokens()[0].1.spent_today, U128(2 * USD));
+
+    // Simulate the ft_transfer receipt failing, then the callback running.
+    let mut b = VMContextBuilder::new();
+    b.current_account_id(acc("vault.near"))
+        .predecessor_account_id(acc("vault.near"))
+        .signer_account_id(agent())
+        .account_balance(NearToken::from_near(100))
+        .block_timestamp(T0);
+    testing_env!(
+        b.build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![near_sdk::PromiseResult::Failed]
+    );
+    assert!(!v.on_ft_transfer(usdc(), sara(), U128(2 * USD), true));
+    assert_eq!(v.get_tokens()[0].1.spent_today, U128(0));
+    assert_eq!(v.get_activity(None)[0].kind, "failed");
+}
+
+#[test]
+fn usdc_subscription_charges_token_budget() {
+    let mut v = setup_usdc();
+    ctx(owner(), T0);
+    let id = v.add_subscription("Payroll".into(), sara(), U128(USD), 3600, Some(usdc()));
+    ctx(agent(), T0);
+    assert_eq!(status(&v.charge_subscription(id)), ActionStatus::Executed);
+    assert_eq!(v.get_tokens()[0].1.spent_today, U128(USD));
+    assert_eq!(v.get_vault_info().vault_spent_today, near(0));
+}
+
+#[test]
+#[should_panic(expected = "token not supported")]
+fn subscription_requires_supported_token() {
+    let mut v = setup();
+    ctx(owner(), T0);
+    v.add_subscription("Payroll".into(), sara(), U128(USD), 3600, Some(usdc()));
 }

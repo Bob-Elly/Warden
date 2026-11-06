@@ -11,6 +11,11 @@ export const REASONS: Record<string, string> = {
   invalid_amount: 'Invalid amount',
   not_due_yet: 'Not due yet',
   strike_limit_reached: 'Strike limit reached',
+  token_not_supported: 'The vault does not pay in that token',
+  token_per_tx_limit_exceeded: 'Over the per-payment limit for this token',
+  token_daily_limit_exceeded: 'Over the daily limit for this token',
+  token_transfer_failed: 'The token transfer failed (recipient not registered on the token?)',
+  quarantine_over: 'Quarantine period ended',
 };
 
 export function reasonText(code?: string | null): string {

@@ -48,7 +48,7 @@ async function main() {
     const methods = [...new Set(scoped.flatMap((k) => (k.permission as any).FunctionCall.method_names))];
     check(full.length === 0, `${id} (${p.label}) has no full-access key`);
     check(
-      scoped.length > 0 && methods.every((m) => ['execute_transfer', 'charge_subscription'].includes(m)),
+      scoped.length > 0 && methods.every((m) => ['execute_transfer', 'execute_ft_transfer', 'charge_subscription'].includes(m)),
       `${id} key can only call the vault`,
       `receiver ${vaultId}, methods [${methods.join(', ')}]`
     );

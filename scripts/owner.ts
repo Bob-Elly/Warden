@@ -10,6 +10,7 @@
  *   reinstate <agent-id>         clear strikes and un-suspend an agent
  *   allow <account> | disallow <account>
  *   limits <agent-id> <per_tx_near> <daily_near>
+ *   quarantine <secs>            auto-reinstate suspended agents after <secs> (0 = owner only)
  *   cap <daily_near>             vault-wide daily cap
  *   fund <near>                  deposit NEAR into the vault
  *   withdraw <near>              withdraw NEAR to the owner
@@ -82,6 +83,8 @@ async function main() {
       return call('remove_from_allowlist', { account_id: a });
     case 'limits':
       return call('set_agent_limits', { account_id: a, per_tx_limit: nearToYocto(b), daily_limit: nearToYocto(c) });
+    case 'quarantine':
+      return call('set_quarantine', { quarantine_secs: Number(a) });
     case 'cap':
       return call('set_vault_daily_limit', { vault_daily_limit: nearToYocto(a) });
     case 'fund':

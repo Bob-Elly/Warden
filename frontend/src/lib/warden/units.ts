@@ -23,3 +23,21 @@ const ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
 export function isValidAccountId(id: string): boolean {
   return typeof id === 'string' && id.length >= 2 && id.length <= 64 && ACCOUNT_RE.test(id);
 }
+
+/** "2.5" with 6 decimals -> "2500000". */
+export function toBaseUnits(amount: string, decimals: number): string {
+  const s = String(amount).trim();
+  if (!/^d+(.d+)?$/.test(s)) throw new Error(`Invalid amount: "${amount}"`);
+  const [w, f = ""] = s.split(".");
+  if (f.length > decimals) throw new Error(`Too many decimals (max ${decimals})`);
+  return (BigInt(w) * 10n ** BigInt(decimals) + BigInt(f.padEnd(decimals, "0") || "0")).toString();
+}
+
+/** "2500000" with 6 decimals -> "2.5". */
+export function fromBaseUnits(base: string | bigint | null | undefined, decimals: number, digits = decimals): string {
+  if (base === null || base === undefined || base === "") return "0";
+  const v = BigInt(base);
+  const d = 10n ** BigInt(decimals);
+  const frac = (v % d).toString().padStart(decimals, "0").slice(0, digits).replace(/0+$/, "");
+  return frac ? `${v / d}.${frac}` : (v / d).toString();
+}

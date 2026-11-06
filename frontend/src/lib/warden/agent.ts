@@ -42,7 +42,7 @@ export async function runAgent(input: ProposeInput & { agentRole?: string }): Pr
   const p = run.llm.proposal;
   run.trace.push({
     id: 'llm',
-    title: `Proposal: ${fmtNear(p.amount_near)} NEAR → ${p.receiver_id}`,
+    title: `Proposal: ${fmtNear(p.amount_near)} ${p.token || 'NEAR'} → ${p.receiver_id}`,
     detail:
       run.llm.engine === 'near-ai-cloud'
         ? `${run.llm.model} on NEAR AI Cloud (TEE), ${run.llm.latencyMs} ms${run.llm.tee?.valid ? ', response signature verified' : ''}`
@@ -95,7 +95,11 @@ export function verdictStep(o: ExecutionOutcome): TraceStep {
       return {
         id: 'verdict',
         title: 'Vault blocked it on-chain',
-        detail: `${REASONS[o.reason ?? ''] ?? o.reason}${o.strikes ? `. Strike ${o.strikes} recorded against the agent.` : ''}`,
+        detail:
+          `${REASONS[o.reason ?? ''] ?? o.reason}${o.strikes ? `. Strike ${o.strikes} recorded against the agent.` : ''}` +
+          (o.suspendedUntilMs
+            ? ` That was the last strike: the agent is suspended on-chain until its quarantine ends (${Math.round((o.suspendedUntilMs - Date.now()) / 1000)} s).`
+            : ''),
         status: 'fail',
       };
     default:

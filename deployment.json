@@ -1,18 +1,22 @@
 {
   "network": "testnet",
-  "createdAt": "2026-11-06T17:28:05.386Z",
-  "vault": "warden-vault-5gx6t.testnet",
+  "createdAt": "2026-11-06T21:18:13.017Z",
+  "vault": "vault-j5qmm.warden-owner-5gx6t.testnet",
   "owner": "warden-owner-5gx6t.testnet",
   "agents": {
-    "payments": "warden-agent-5gx6t.testnet",
-    "research": "warden-research-5gx6t.testnet"
+    "payments": "payments-j5qmm.warden-owner-5gx6t.testnet",
+    "research": "research-j5qmm.warden-owner-5gx6t.testnet"
   },
-  "x402PayTo": "warden-api-5gx6t.testnet",
+  "x402PayTo": "api-j5qmm.warden-owner-5gx6t.testnet",
   "allowlist": [
     "sara.testnet",
     "merchant.testnet",
-    "warden-api-5gx6t.testnet"
+    "api-j5qmm.warden-owner-5gx6t.testnet"
   ],
   "vaultLocked": true,
-  "wasmSha256": "42f46530a84c12c5d7e584396629c5bdaba95223b08be5257a635066e66232c8"
+  "quarantineSecs": 60,
+  "tokens": {
+    "USDC": "3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af"
+  },
+  "wasmSha256": "bffff1dad9b8dc71861cc561f8c131c73a2287ca5c44a02778215f777fd7bc7a"
 }
