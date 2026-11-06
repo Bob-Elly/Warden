@@ -21,6 +21,6 @@ export function reasonText(code?: string | null): string {
 /** "1000000" -> "1,000,000", keeps decimals as typed. */
 export function fmtNear(amount: string): string {
   const [w, f] = String(amount).split('.');
-  const whole = w.replace(/B(?=(d{3})+(?!d))/g, ',');
+  const whole = w.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return f ? `${whole}.${f}` : whole;
 }
