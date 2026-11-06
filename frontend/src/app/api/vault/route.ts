@@ -23,6 +23,13 @@ export async function GET() {
       },
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/method is not found|MethodNotFound/i.test(msg)) {
+      return errorJson(
+        new Error(`${cfg.vaultId} is not a Warden v2 vault (contract method not found). Check VAULT_CONTRACT_ID, or run npm run setup.`),
+        503
+      );
+    }
     return errorJson(e, 503);
   }
 }

@@ -7,7 +7,7 @@ export function getConfig() {
   const networkId = env.NEAR_NETWORK_ID || 'testnet';
   return {
     networkId,
-    nodeUrl: env.NEAR_NODE_URL || (networkId === 'mainnet' ? 'https://free.rpc.fastnear.com' : 'https://test.rpc.fastnear.com'),
+    nodeUrl: resolveRpc(env.NEAR_NODE_URL, networkId),
     explorer: networkId === 'mainnet' ? 'https://nearblocks.io' : 'https://testnet.nearblocks.io',
     vaultId: env.VAULT_CONTRACT_ID || '',
     ownerId: env.OWNER_ACCOUNT_ID || '',
@@ -28,6 +28,13 @@ export function getConfig() {
 }
 
 export type WardenConfig = ReturnType<typeof getConfig>;
+
+/** rpc.*.near.org is deprecated and rate-limited (HTTP 429), so fall back to FastNEAR. */
+function resolveRpc(url: string | undefined, networkId: string): string {
+  const fallback = networkId === 'mainnet' ? 'https://free.rpc.fastnear.com' : 'https://test.rpc.fastnear.com';
+  if (!url || /^https?:\/\/rpc\.(testnet|mainnet)\.near\.org\/?$/.test(url)) return fallback;
+  return url;
+}
 
 export interface AgentCredential {
   accountId: string;
