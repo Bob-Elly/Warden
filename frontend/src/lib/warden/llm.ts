@@ -82,24 +82,34 @@ export async function proposeTransfer(input: ProposeInput): Promise<ProposeResul
     : input.instruction;
 
   try {
-    const res = await client.chat.completions.create(
-      {
-        model,
-        messages: [
-          { role: 'system', content: mode === 'redteam' ? REDTEAM_PROMPT : SYSTEM_PROMPT },
-          { role: 'user', content: user },
-        ],
-        response_format: { type: 'json_object' },
-        max_tokens: 400,
-      } as any,
-      { headers: { 'x-no-aliasing': 'true' } }
-    );
-    const content = (res as any).choices?.[0]?.message?.content ?? '';
-    const proposal = normalizeProposal(extractJson(content));
-    const tee = await verifyCompletion((res as any).id, model).catch(
-      (e): TeeVerification => ({ chatId: (res as any).id, valid: false, error: String(e) })
-    );
-    return { proposal, engine: 'near-ai-cloud', model, mode, latencyMs: Date.now() - started, tee };
+    // Reasoning models occasionally spend their budget thinking and return no
+    // JSON, so allow room for the answer and try twice before falling back.
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await client.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: 'system', content: mode === 'redteam' ? REDTEAM_PROMPT : SYSTEM_PROMPT },
+            { role: 'user', content: user },
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 1500,
+        } as any,
+        { headers: { 'x-no-aliasing': 'true' } }
+      );
+      try {
+        const content = (res as any).choices?.[0]?.message?.content ?? '';
+        const proposal = normalizeProposal(extractJson(content));
+        const tee = await verifyCompletion((res as any).id, model).catch(
+          (e): TeeVerification => ({ chatId: (res as any).id, valid: false, error: String(e) })
+        );
+        return { proposal, engine: 'near-ai-cloud', model, mode, latencyMs: Date.now() - started, tee };
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
   } catch (err: any) {
     return {
       proposal: localParse(input),

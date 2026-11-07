@@ -163,7 +163,7 @@ export function cleanError(err: any): string {
   if (/signed with an access key which allows transaction to apply only one specific action|RequiresFullAccess/i.test(msg)) {
     return 'a function-call key cannot sign a NEAR transfer, only calls to its one contract (NEAR protocol rule)';
   }
-  if (/ReceiverMismatch|receiver.*doesn't match/i.test(msg)) {
+  if (/ReceiverMismatch|receiver.*doesn't match|restricted to only use with receiver_id/i.test(msg)) {
     return 'this function-call key only works for the vault contract (NEAR protocol rule)';
   }
   return msg.split('\n')[0].slice(0, 300);

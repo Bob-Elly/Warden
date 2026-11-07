@@ -93,6 +93,13 @@ export default function Home() {
         </div>
       </div>
 
+      {!!features?.unregisteredAgents?.length && (
+        <div className="notice bad" style={{ marginBottom: 16 }}>
+          Configuration problem: this server signs as {features.unregisteredAgents.join(', ')}, which is not an agent of{' '}
+          {snap?.vaultId}. Its key belongs to a different vault, so NEAR will refuse its transactions. Update AGENT_ACCOUNT_ID /
+          AGENT_PRIVATE_KEY (and RESEARCH_AGENT_*) to the agents of this vault.
+        </div>
+      )}
       {loadError && (
         <div className="notice bad" style={{ marginBottom: 16 }}>
           Could not read the vault from NEAR RPC: {loadError}

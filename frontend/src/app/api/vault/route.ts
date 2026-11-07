@@ -20,6 +20,10 @@ export async function GET() {
         x402Price: cfg.x402.priceYocto,
         ownerId: cfg.ownerId,
         agentRoles: cfg.agents.map((a) => ({ role: a.role, accountId: a.accountId })),
+        // Server agents that this vault does not know: a sign of mismatched env vars.
+        unregisteredAgents: cfg.agents
+          .map((a) => a.accountId)
+          .filter((id) => !snapshot.agents.some((x) => x.accountId === id)),
       },
     });
   } catch (e) {

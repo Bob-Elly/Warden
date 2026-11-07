@@ -6,4 +6,5 @@ export interface Features {
   x402Price: string;
   ownerId: string;
   agentRoles: { role: string; accountId: string }[];
+  unregisteredAgents?: string[];
 }
