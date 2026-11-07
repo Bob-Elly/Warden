@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Bot, CalendarClock, Clock, KeyRound, ListChecks, Loader2, PauseCircle, Vault } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, BrainCircuit, Bot, CalendarClock, Clock, KeyRound, ListChecks, Loader2, Lock, PauseCircle, ShieldX, Sparkles, Vault } from 'lucide-react';
+import type { Features } from './types';
 import type { VaultSnapshot, ExecutionOutcome } from '@/lib/warden/types';
 import { Cmd, Explorer, Meter, Strikes, amountText, near, postJson, relTime, useCountdown } from './ui';
 import { fromBaseUnits } from '@/lib/warden/units';
@@ -21,10 +23,11 @@ function SuspendedPill({ untilMs, onOver }: { untilMs: number; onOver: () => voi
   return <span className="pill bad">{untilMs ? `suspended · back in ${left}s` : 'suspended'}</span>;
 }
 
-export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: () => void }) {
+type Props = { snap: VaultSnapshot; onChange: () => void };
+
+export function VaultCard({ snap }: { snap: VaultSnapshot }) {
   const { info } = snap;
   return (
-    <div className="stack">
       <section className="card" aria-labelledby="vault-h">
         <div className="card-title" id="vault-h">
           <Vault size={15} /> Vault
@@ -87,6 +90,12 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
         )}
       </section>
 
+  );
+}
+
+export function AgentsCard({ snap, onChange }: Props) {
+  const { info } = snap;
+  return (
       <section className="card" aria-labelledby="agents-h">
         <div className="card-title" id="agents-h">
           <Bot size={15} /> Agents <span className="count faint">{snap.agents.length}</span>
@@ -138,6 +147,11 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
         </div>
       </section>
 
+  );
+}
+
+export function PendingCard({ snap }: { snap: VaultSnapshot }) {
+  return (
       <section className="card" aria-labelledby="pending-h">
         <div className="card-title" id="pending-h">
           <Clock size={15} /> Waiting for owner <span className="count faint">{snap.pending.length}</span>
@@ -168,8 +182,12 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
         )}
       </section>
 
-      <Subscriptions snap={snap} onChange={onChange} />
+  );
+}
 
+export function AllowlistCard({ snap }: { snap: VaultSnapshot }) {
+  const { info } = snap;
+  return (
       <section className="card" aria-labelledby="allow-h">
         <div className="card-title" id="allow-h">
           <ListChecks size={15} /> Allowlist <span className="count faint">{info.allowlist.length}</span>
@@ -182,11 +200,107 @@ export function VaultPanel({ snap, onChange }: { snap: VaultSnapshot; onChange: 
           ))}
         </div>
       </section>
+  );
+}
+
+/** Live checks read from RPC: agent keys, locked contract, blocked attempts, agent brain. */
+export function SecurityChecks({ snap, features }: { snap: VaultSnapshot; features: Features | null }) {
+  const explorer = snap.explorer;
+  const agentKeysOk = !!snap.agents.length && snap.agents.every((a) => a.keys.length > 0 && a.keys.every((k) => k.permission !== 'FullAccess'));
+  const suspended = `${snap.agents.filter((a) => a.policy.suspended).length} of ${snap.agents.length} agents`;
+  const vaultLocked = snap.vaultKeys.every((k) => k.permission !== 'FullAccess');
+  return (
+    <div className="proofs">
+      <a className="proof" href={`${explorer}/address/${snap.agents[0]?.accountId}#accesskeys`} target="_blank" rel="noopener noreferrer">
+        <KeyRound size={18} color={agentKeysOk ? 'var(--ok)' : 'var(--bad)'} />
+        <div>
+          <div className="label">Agent keys (live from RPC)</div>
+          <div className="value">{agentKeysOk ? 'Function-call only, vault-scoped' : 'Full-access key found'}</div>
+        </div>
+      </a>
+      <a className="proof" href={`${explorer}/address/${snap.vaultId}#accesskeys`} target="_blank" rel="noopener noreferrer">
+        <Lock size={18} color={vaultLocked ? 'var(--ok)' : 'var(--warn)'} />
+        <div>
+          <div className="label">Vault contract</div>
+          <div className="value">{vaultLocked ? 'Locked: no one can change the code' : 'Upgradeable (deployer key kept)'}</div>
+        </div>
+      </a>
+      <div className="proof">
+        <ShieldX size={18} color="var(--bad)" />
+        <div>
+          <div className="label">Blocked on-chain</div>
+          <div className="value">
+            {snap.info.total_blocked} {snap.info.total_blocked === 1 ? 'attempt' : 'attempts'} · {suspended} suspended
+          </div>
+        </div>
+      </div>
+      <div className="proof">
+        {features?.nearAi ? <BrainCircuit size={18} color="var(--ok)" /> : <Sparkles size={18} color="var(--warn)" />}
+        <div>
+          <div className="label">Agent brain</div>
+          <div className="value">{features?.nearAi ? 'NEAR AI Cloud, in a TEE' : 'Local parser (no AI key)'}</div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Subscriptions({ snap, onChange }: { snap: VaultSnapshot; onChange: () => void }) {
+/** Compact live state next to the demo: what each step changes. */
+export function LiveStatus({ snap, onChange }: Props) {
+  const { info } = snap;
+  return (
+    <section className="card" aria-labelledby="live-h">
+      <div className="card-title" id="live-h">
+        <Vault size={15} /> Live from the vault
+        <span className="count">
+          {info.paused ? <span className="pill bad">paused</span> : <span className="pill ok"><span className="dot live" /> active</span>}
+        </span>
+      </div>
+      <div className="stat">{near(info.balance, 2)} NEAR</div>
+      {snap.tokens.map((t) => (
+        <div className="sub" key={t.tokenId}>
+          {fromBaseUnits(t.balance, t.policy.decimals, 2)} {t.policy.symbol} · {fromBaseUnits(t.policy.spent_today, t.policy.decimals, 2)} /{' '}
+          {fromBaseUnits(t.policy.daily_limit, t.policy.decimals, 2)} {t.policy.symbol} spent today
+        </div>
+      ))}
+      <div className="divider" />
+      <div className="list">
+        {snap.agents.map((a) => (
+          <div key={a.accountId}>
+            <div className="row between" style={{ marginBottom: 4 }}>
+              <b style={{ textTransform: 'capitalize' }}>{a.policy.label} agent</b>
+              {a.policy.suspended ? (
+                <SuspendedPill untilMs={a.policy.suspended_until_ms} onOver={onChange} />
+              ) : (
+                <Strikes n={a.policy.strikes} max={info.strike_limit} />
+              )}
+            </div>
+            <div className="kv">
+              <span>Today</span>
+              <span>
+                {near(a.policy.spent_today)} / {near(a.policy.daily_limit)} NEAR
+              </span>
+            </div>
+            <Meter value={a.policy.spent_today} max={a.policy.daily_limit} />
+          </div>
+        ))}
+      </div>
+      <div className="divider" />
+      <Link href="/owner" className="row between live-link">
+        <span>
+          <Clock size={13} /> {snap.pending.length} waiting for the owner
+        </span>
+        <ArrowRight size={14} />
+      </Link>
+      <Link href="/vault" className="row between live-link">
+        <span>Vault details and recurring payments</span>
+        <ArrowRight size={14} />
+      </Link>
+    </section>
+  );
+}
+
+export function Subscriptions({ snap, onChange }: { snap: VaultSnapshot; onChange: () => void }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [last, setLast] = useState<Record<number, ExecutionOutcome>>({});
 

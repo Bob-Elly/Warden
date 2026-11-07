@@ -21,12 +21,12 @@ Agents can already read an invoice, notice a renewal or find a paid data source.
 
 | | What it means | Where to see it |
 | --- | --- | --- |
-| **Agents that pay** | Plain-English invoices become payments; recurring payments (hosting, payroll) are charged by the agent when due; the agent buys data from a paid API by itself over x402. Several agents, each with its own budget and role. | Steps 1–2, the x402 tab, "Recurring payments" |
+| **Agents that pay** | Plain-English invoices become payments; recurring payments (hosting, payroll) are charged by the agent when due; the agent buys data from a paid API by itself over x402. Several agents, each with its own budget and role. | Steps 1–2, the x402 tab, "Recurring payments" on the Vault page |
 | **Real money, stablecoins included** | NEAR and USDC (NEP-141), each with its own limits. Swap sizing through a live NEAR Intents quote. | Step 2, the swap tab |
 | **Autonomy within a budget** | Payments inside the limits go through with no human. Larger ones wait in an on-chain queue for the owner. Unknown recipients are refused. | Steps 1–4 |
 | **Rules the agent cannot break** | The agent's NEAR function-call key can only ask the vault to pay. The contract checks every rule; the code is locked. Three bad requests suspend the agent. | Step 4, `npm run demo:attack` |
 | **Private, verifiable AI** | The agent's model runs in a TEE on NEAR AI Cloud. Each response's signature is checked against the enclave's attestation and shown in the trace. | The Private AI tab, every trace |
-| **A full audit trail** | Every payment, refusal, strike and approval is stored in the contract and emitted as an event. | "On-chain activity" |
+| **A full audit trail** | Every payment, refusal, strike and approval is stored in the contract and emitted as an event. | The Activity page |
 
 We show the hard case live: a real jailbroken model (`Qwen3.8-27B-abliterated`) reads a poisoned invoice and tries to send 1,000,000 NEAR to an attacker. The contract refuses and suspends the agent.
 
@@ -64,18 +64,18 @@ Security properties you can check yourself on testnet:
 
 ## Try it in the browser (2 minutes, nothing to install)
 
-Open https://warden-near.vercel.app. Everything on the page is read live from NEAR testnet.
+Open https://warden-near.vercel.app. Everything is read live from NEAR testnet. The nav bar has four pages: **Demo** (the agent, home page), **Vault** (money, caps, live security checks, recurring payments), **Owner** (approvals, agents, allowlist) and **Activity** (the contract's on-chain log).
 
-1. Check the four cards at the top. Expected: "Agent keys: function-call only, vault-scoped" and "Vault contract: locked". Both are read from RPC (`view_access_key_list`).
-2. Click **Step 1 Routine payment**. Expected: a green "Paid" result with a transaction link. The payments agent's "Today" bar on the right goes up by 0.1 NEAR.
-3. Click **Step 2 Pay in USDC** (2 USDC, Circle testnet USDC). Expected: "Paid"; the USDC bar in the Vault card goes up by 2 USDC and the activity log shows "2 USDC".
-4. Click **Step 3 Over the limit** (1.5 NEAR with a 0.5 NEAR per-payment limit). Expected: "Waiting for the owner", and a new entry under "Waiting for owner" with the command the owner runs to approve it.
+1. Open **Vault** and check the four cards at the top. Expected: "Agent keys: function-call only, vault-scoped" and "Vault contract: locked". Both are read from RPC (`view_access_key_list`).
+2. Back on **Demo**, click **Step 1 Routine payment**. Expected: a green "Paid" result with a transaction link. In "Live from the vault" on the right, the payments agent's "Today" bar goes up by 0.1 NEAR.
+3. Click **Step 2 Pay in USDC** (2 USDC, Circle testnet USDC). Expected: "Paid"; the USDC spent today in "Live from the vault" goes up by 2 USDC.
+4. Click **Step 3 Over the limit** (1.5 NEAR with a 0.5 NEAR per-payment limit). Expected: "Waiting for the owner". The **Owner** link in the nav shows a badge, and the **Owner** page lists the request with the command the owner runs to approve it.
 5. Click **Step 4 Poisoned invoice**. The agent reads an email with a hidden instruction to send 1,000,000 NEAR to `attacker.testnet`, and runs in red-team mode (a model that obeys embedded instructions). Expected: the proposal shows the drain, then the vault answers "Blocked by the vault: recipient is not on the allowlist" and a red strike appears on the agent. The transaction link shows the `action_rejected` event.
-6. Click **Step 4** two more times. Expected: on the third strike the agent is suspended on-chain and a countdown appears ("back in 60s"). During the countdown every payment is refused with "The agent is suspended". When it reaches zero the agent is reinstated with a clean record (the `reinstated` row in the activity log comes from the contract).
+6. Click **Step 4** two more times. Expected: on the third strike the agent is suspended on-chain and a countdown appears ("back in 60s"). During the countdown every payment is refused with "The agent is suspended". When it reaches zero the agent is reinstated with a clean record (the `reinstated` row on the **Activity** page comes from the contract).
 7. Open the **Buy API data (x402)** tab and click the button. Expected: a 402 from the paid API, a 0.01 NEAR payment through the vault, then live token prices returned after the API verified the payment on-chain.
 8. Open **Swap (NEAR Intents)** and request a quote. Expected: a live mainnet 1Click quote (`dry: true`, nothing is sent) and a line saying whether the size fits the agent's budget.
-9. Under **Recurring payments**, click "Agent: pay now" on a payment that is due. Expected: paid; clicking again shows "Not due yet".
-10. The **On-chain activity** table at the bottom is read from the contract's `get_activity` view.
+9. On **Vault**, under **Recurring payments**, click "Agent: pay now" on a payment that is due. Expected: paid; clicking again shows "Not due yet".
+10. The **Activity** page is read from the contract's `get_activity` view.
 
 > The public demo uses a shared testnet vault with small budgets (0.5 NEAR per payment and 2 NEAR per day for the payments agent, 3 NEAR per day vault-wide, 2 USDC per payment and 10 USDC per day). If a daily budget is used up, payments queue for approval until the window resets. The shared vault uses a 60-second quarantine so a suspended agent comes back on its own for the next visitor.
 
@@ -165,7 +165,7 @@ With a key, each proposal shows a verified TEE signature, and the **Private AI**
 | **Agent Economy** | The agent pays for an API by itself through an x402-style HTTP 402 flow, settled by the vault, verified on-chain by the API before it serves data | "Agent pays for an API" tab, `frontend/src/lib/warden/x402.ts` |
 | **Privacy & Private AI** | Payment instructions go to NEAR AI Cloud models running in TEEs. Every completion's ECDSA signature is verified, and the attestation report (Intel TDX + NVIDIA evidence, fresh nonce) is shown | "Private AI" tab, `frontend/src/lib/warden/llm.ts`, `attestation.ts` (needs `NEAR_AI_API_KEY`) |
 | **AI Swarms** | Several agents under one vault, each with its own budget and strike count, plus a shared vault-wide cap so the group can never overspend together | Agents panel, `vault_cap_applies_across_agents` and `agents_have_independent_budgets_and_strikes` tests |
-| **Real-World Money** | Stablecoin payments in Circle testnet USDC (NEP-141) with their own per-payment and daily limits; USDC contractor payroll and NEAR hosting bills as recurring payments with amount, payee and schedule fixed on-chain; invoice payment from email | "Pay in USDC" step, Recurring payments panel, `execute_ft_transfer`, `charge_subscription` |
+| **Real-World Money** | Stablecoin payments in Circle testnet USDC (NEP-141) with their own per-payment and daily limits; USDC contractor payroll and NEAR hosting bills as recurring payments with amount, payee and schedule fixed on-chain; invoice payment from email | "Pay in USDC" step, Recurring payments on the Vault page, `execute_ft_transfer`, `charge_subscription` |
 | **Autonomous Business** | Humans only set the constraints (allowlist, budgets, caps, quarantine); agents run day-to-day payments, payroll, subscriptions and data purchases within them | Whole app |
 | **Unstoppable DeFi** | Live NEAR Intents 1Click quotes checked against the agent's vault budget before a swap is proposed. NEAR Intents is mainnet-only and has no testnet, so the testnet demo requests real solver quotes with `dry: true` and does not execute the swap | "Swap quote (Intents)" tab, `frontend/src/lib/warden/intents.ts` |
 
