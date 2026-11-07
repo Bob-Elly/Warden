@@ -1,8 +1,8 @@
 # Warden
 
-**The agent wallet where the AI never holds the keys.**
+**The corporate card for AI agents.**
 
-Warden lets an AI agent make payments without being able to lose your money. Funds live in a NEAR smart contract (the vault). The agent only holds a NEAR **function-call access key** that can call two methods on that one contract. Every rule (allowlist, per-agent budgets, a vault-wide cap, owner approval above limits, automatic suspension after repeated bad requests) is enforced on-chain. If the LLM is prompt-injected or the server is taken over, the worst case is bounded by rules the agent cannot change.
+Warden lets AI agents pay for things on their own: invoices written in plain English, recurring subscriptions and payroll, and pay-per-call APIs (x402), in NEAR or USDC. Like a company card, every agent has a budget, an approved list of recipients, and a sign-off threshold above which a human decides. Unlike a company card, those rules are enforced by a NEAR smart contract, so they hold even if the agent is jailbroken or its server is taken over. The agent thinks privately: its model runs in a TEE on NEAR AI Cloud, and every decision comes with a signature anyone can verify.
 
 Built at NEAR HACKATHON (Nov 1–14, 2026) by Bob-Elly ([GitHub](https://github.com/Bob-Elly)) and NECO ([GitHub: NECOKIZZ](https://github.com/NECOKIZZ)). MIT licensed.
 
@@ -12,7 +12,23 @@ Built at NEAR HACKATHON (Nov 1–14, 2026) by Bob-Elly ([GitHub](https://github.
 
 ## The problem
 
-Most agent wallets give the LLM a private key. One prompt injection (a poisoned email, web page or tool result) or one server breach, and the wallet is drained. Guardrails written in the prompt or in the agent's own code do not help, because they run in the same place the attacker controls.
+Agents can already read an invoice, notice a renewal or find a paid data source. Letting them pay is where it breaks down. Today there are two options:
+
+1. **Give the agent a wallet.** It holds a private key, so one prompt injection (a poisoned email, web page or tool result) or one server breach empties it. Guardrails in the prompt or in the agent's own code run where the attacker already is.
+2. **Approve every payment yourself.** Safe, but then the agent is a form-filler, not an agent. Recurring and machine-to-machine payments (subscriptions, payroll, per-call APIs) stop being automatic.
+
+## What Warden does differently
+
+| | What it means | Where to see it |
+| --- | --- | --- |
+| **Agents that pay** | Plain-English invoices become payments; recurring payments (hosting, payroll) are charged by the agent when due; the agent buys data from a paid API by itself over x402. Several agents, each with its own budget and role. | Steps 1–2, the x402 tab, "Recurring payments" |
+| **Real money, stablecoins included** | NEAR and USDC (NEP-141), each with its own limits. Swap sizing through a live NEAR Intents quote. | Step 2, the swap tab |
+| **Autonomy within a budget** | Payments inside the limits go through with no human. Larger ones wait in an on-chain queue for the owner. Unknown recipients are refused. | Steps 1–4 |
+| **Rules the agent cannot break** | The agent's NEAR function-call key can only ask the vault to pay. The contract checks every rule; the code is locked. Three bad requests suspend the agent. | Step 4, `npm run demo:attack` |
+| **Private, verifiable AI** | The agent's model runs in a TEE on NEAR AI Cloud. Each response's signature is checked against the enclave's attestation and shown in the trace. | The Private AI tab, every trace |
+| **A full audit trail** | Every payment, refusal, strike and approval is stored in the contract and emitted as an event. | "On-chain activity" |
+
+We show the hard case live: a real jailbroken model (`Qwen3.8-27B-abliterated`) reads a poisoned invoice and tries to send 1,000,000 NEAR to an attacker. The contract refuses and suspends the agent.
 
 ## How Warden works
 
@@ -56,8 +72,8 @@ Open https://warden-near.vercel.app. Everything on the page is read live from NE
 4. Click **Step 3 Over the limit** (1.5 NEAR with a 0.5 NEAR per-payment limit). Expected: "Waiting for the owner", and a new entry under "Waiting for owner" with the command the owner runs to approve it.
 5. Click **Step 4 Poisoned invoice**. The agent reads an email with a hidden instruction to send 1,000,000 NEAR to `attacker.testnet`, and runs in red-team mode (a model that obeys embedded instructions). Expected: the proposal shows the drain, then the vault answers "Blocked by the vault: recipient is not on the allowlist" and a red strike appears on the agent. The transaction link shows the `action_rejected` event.
 6. Click **Step 4** two more times. Expected: on the third strike the agent is suspended on-chain and a countdown appears ("back in 60s"). During the countdown every payment is refused with "The agent is suspended". When it reaches zero the agent is reinstated with a clean record (the `reinstated` row in the activity log comes from the contract).
-7. Open the **Agent pays for an API** tab and click the button. Expected: a 402 from the paid API, a 0.01 NEAR payment through the vault, then live token prices returned after the API verified the payment on-chain.
-8. Open **Swap quote (Intents)** and request a quote. Expected: a live mainnet 1Click quote (`dry: true`, nothing is sent) and a line saying whether the size fits the agent's budget.
+7. Open the **Buy API data (x402)** tab and click the button. Expected: a 402 from the paid API, a 0.01 NEAR payment through the vault, then live token prices returned after the API verified the payment on-chain.
+8. Open **Swap (NEAR Intents)** and request a quote. Expected: a live mainnet 1Click quote (`dry: true`, nothing is sent) and a line saying whether the size fits the agent's budget.
 9. Under **Recurring payments**, click "Agent: pay now" on a payment that is due. Expected: paid; clicking again shows "Not due yet".
 10. The **On-chain activity** table at the bottom is read from the contract's `get_activity` view.
 

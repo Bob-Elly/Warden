@@ -12,10 +12,10 @@ import type { Features } from '@/components/types';
 type Tab = 'agent' | 'x402' | 'swap' | 'privacy';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'agent', label: 'Ask the agent' },
-  { id: 'x402', label: 'Agent pays for an API' },
-  { id: 'swap', label: 'Swap quote (Intents)' },
-  { id: 'privacy', label: 'Private AI' },
+  { id: 'agent', label: 'Pay an invoice' },
+  { id: 'x402', label: 'Buy API data (x402)' },
+  { id: 'swap', label: 'Swap (NEAR Intents)' },
+  { id: 'privacy', label: 'Private AI (TEE)' },
 ];
 
 export default function Home() {
@@ -63,7 +63,7 @@ export default function Home() {
           </div>
           <div>
             <h1>Warden</h1>
-            <p>The agent wallet where the AI never holds the keys</p>
+            <p>The corporate card for AI agents</p>
           </div>
         </div>
         <div className="row">
@@ -79,17 +79,23 @@ export default function Home() {
         </div>
       </header>
 
+      <p className="pitch">
+        Your AI agents pay invoices, run subscriptions and payroll, and buy data from paid APIs on their own, in NEAR or
+        USDC. A NEAR smart contract holds the money and enforces every limit, so you no longer choose between approving each
+        payment yourself and handing an AI your wallet.
+      </p>
       <div className="how">
         <div>
-          <b>1. The vault holds the money</b>A NEAR smart contract with an allowlist, per-agent budgets and a vault-wide daily cap.
+          <b>Agents that pay for you</b>Invoices from plain English, recurring payments, pay-per-call APIs (x402). Each agent
+          has its own budget.
         </div>
         <div>
-          <b>2. The agent only holds a restricted key</b>It can ask the vault to pay. It cannot send NEAR, change rules or
-          withdraw.
+          <b>Limits the agent cannot break</b>Approved recipients, per-agent and vault-wide caps, your sign-off above a limit,
+          suspension after three bad requests. Enforced by NEAR, not by a prompt.
         </div>
         <div>
-          <b>3. The contract decides</b>Within limits it pays. Over a limit, the owner decides. Anything else is blocked and
-          logged as a strike.
+          <b>Private, verifiable AI</b>The agent reads your invoices inside a secure enclave on NEAR AI Cloud, and every
+          decision comes with a signature you can check.
         </div>
       </div>
 
