@@ -4,6 +4,9 @@ import { getConfig } from '@/lib/warden/config';
 import { errorJson } from '@/lib/warden/http';
 
 export const dynamic = 'force-dynamic';
+// Never cache NEAR RPC or partner API responses: the dashboard must show live chain state.
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 /** Everything on the dashboard, read live from NEAR RPC. No cached or demo data. */
 export async function GET() {

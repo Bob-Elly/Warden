@@ -3,6 +3,9 @@ import { ASSETS, dryQuote, type AssetKey } from '@/lib/warden/intents';
 import { errorJson, rateLimited } from '@/lib/warden/http';
 
 export const dynamic = 'force-dynamic';
+// Never cache NEAR RPC or partner API responses: the dashboard must show live chain state.
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 export async function POST(req: NextRequest) {
   const limited = rateLimited(req, 20);

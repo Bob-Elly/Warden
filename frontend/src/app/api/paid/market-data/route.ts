@@ -4,6 +4,9 @@ import { tokenPrices } from '@/lib/warden/intents';
 import { errorJson } from '@/lib/warden/http';
 
 export const dynamic = 'force-dynamic';
+// Never cache NEAR RPC or partner API responses: the dashboard must show live chain state.
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 const DESCRIPTION = 'Live token prices from the NEAR Intents token list';
 
